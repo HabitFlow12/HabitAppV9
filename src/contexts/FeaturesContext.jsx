@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import { doc, setDoc } from 'firebase/firestore'
+import { db } from '../firebase/config'
 import { useAuth } from './AuthContext'
 
 const FeaturesContext = createContext()
@@ -73,6 +75,7 @@ export function FeaturesProvider({ children }) {
       setLoading(true)
       const userData = await getUserData(currentUser.uid)
       if (userData) {
+        // Safely load all features data with proper defaults
         setJournalEntries(userData.journalEntries || [])
         setCalendarEvents(userData.calendarEvents || [])
         setTodoItems(userData.todoItems || [])
@@ -94,9 +97,22 @@ export function FeaturesProvider({ children }) {
         setSchoolSettings(userData.schoolSettings || {})
         setPasswordEntries(userData.passwordEntries || [])
         setVaultPin(userData.vaultPin || '')
+        
+        console.log('Features data loaded successfully:', {
+          journalEntries: userData.journalEntries?.length || 0,
+          calendarEvents: userData.calendarEvents?.length || 0,
+          todoItems: userData.todoItems?.length || 0,
+          transactions: userData.transactions?.length || 0
+        })
+      } else {
+        console.log('No features data found, initializing with defaults')
+        // Initialize with empty defaults if no data exists
+        resetAllData()
       }
     } catch (error) {
       console.error('Error loading features data:', error)
+      // Initialize with empty defaults on error
+      resetAllData()
     } finally {
       setLoading(false)
     }
@@ -106,7 +122,8 @@ export function FeaturesProvider({ children }) {
     if (!currentUser) return
 
     try {
-      await updateUserData(currentUser.uid, {
+      // Prepare complete features data for saving
+      const featuresData = {
         journalEntries,
         calendarEvents,
         todoItems,
@@ -129,9 +146,13 @@ export function FeaturesProvider({ children }) {
         passwordEntries,
         vaultPin,
         lastUpdated: new Date()
-      })
+      }
+      
+      // Use setDoc with merge to safely update the document
+      await setDoc(doc(db, "users", currentUser.uid), featuresData, { merge: true })
     } catch (error) {
       console.error('Error saving features data:', error)
+      // Don't throw error to prevent app crashes, but log for debugging
     }
   }
 
@@ -834,7 +855,7 @@ export function FeaturesProvider({ children }) {
     if (!loading && currentUser) {
       const timeoutId = setTimeout(() => {
         saveFeaturesData()
-      }, 500) // Debounce saves by 500ms
+      }, 1000) // Increase debounce to 1 second to reduce Firebase calls
 
       return () => clearTimeout(timeoutId)
     }

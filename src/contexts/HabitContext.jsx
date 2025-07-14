@@ -45,6 +45,7 @@ export function HabitProvider({ children }) {
       setLoading(true)
       const userData = await getUserData(currentUser.uid)
       if (userData) {
+        // Safely load all habit-related data with proper defaults
         setHabits(userData.habits || {})
         setHabitCompletion(userData.habitCompletion || {})
         setActivityLog(userData.activityLog || {})
@@ -52,9 +53,33 @@ export function HabitProvider({ children }) {
         setHabitStacks(userData.habitStacks || {})
         setDailyStats(userData.dailyStats || {})
         setReflections(userData.reflections || {})
+        
+        console.log('Habit data loaded successfully:', {
+          habitsCount: Object.keys(userData.habits || {}).length,
+          preferencesCount: Object.keys(userData.habitPreferences || {}).length,
+          stacksCount: Object.keys(userData.habitStacks || {}).length
+        })
+      } else {
+        console.log('No user data found, initializing with defaults')
+        // Initialize with empty defaults if no data exists
+        setHabits({})
+        setHabitCompletion({})
+        setActivityLog({})
+        setHabitPreferences({})
+        setHabitStacks({})
+        setDailyStats({})
+        setReflections({})
       }
     } catch (error) {
       console.error('Error loading user data:', error)
+      // Initialize with empty defaults on error
+      setHabits({})
+      setHabitCompletion({})
+      setActivityLog({})
+      setHabitPreferences({})
+      setHabitStacks({})
+      setDailyStats({})
+      setReflections({})
     } finally {
       setLoading(false)
     }
@@ -64,7 +89,8 @@ export function HabitProvider({ children }) {
     if (!currentUser) return
 
     try {
-      const userData = {
+      // Prepare complete user data for saving
+      const habitData = {
         habits,
         habitCompletion,
         activityLog,
@@ -75,10 +101,11 @@ export function HabitProvider({ children }) {
         lastUpdated: new Date()
       }
       
-      // Use setDoc with merge to safely update or create the document
-      await setDoc(doc(db, "users", currentUser.uid), userData, { merge: true })
+      // Use setDoc with merge to safely update the document
+      await setDoc(doc(db, "users", currentUser.uid), habitData, { merge: true })
     } catch (error) {
       console.error('Error saving user data:', error)
+      // Don't throw error to prevent app crashes, but log for debugging
     }
   }
 
@@ -435,7 +462,7 @@ export function HabitProvider({ children }) {
     if (!loading && currentUser) {
       const timeoutId = setTimeout(() => {
         saveUserData()
-      }, 500) // Debounce saves by 500ms
+      }, 1000) // Increase debounce to 1 second to reduce Firebase calls
 
       return () => clearTimeout(timeoutId)
     }

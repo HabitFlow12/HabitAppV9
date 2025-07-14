@@ -45,7 +45,7 @@ export default function Signup() {
     try {
       setLoading(true)
       await signup(email, password, name)
-      showMessage('Account created successfully! Verification email sent - please check your inbox and verify your email before logging in.', 'success')
+      showMessage('Account created successfully! Please check your email and click the verification link before logging in.', 'success')
       setTimeout(() => navigate('/verify-email'), 2000)
     } catch (error) {
       let errorMessage = 'An error occurred. Please try again.'
@@ -59,6 +59,12 @@ export default function Signup() {
           break
         case 'auth/weak-password':
           errorMessage = 'Password is too weak. Please choose a stronger password.'
+          break
+        default:
+          // Handle custom error messages from signup function
+          if (error.message && error.message.includes('verification email failed')) {
+            errorMessage = error.message
+          }
           break
       }
       

@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getAuth, connectAuthEmulator } from "firebase/auth";
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 import { Capacitor } from '@capacitor/core';
 
 const firebaseConfig = {
@@ -17,6 +17,7 @@ const firebaseConfig = {
 let app;
 try {
   app = initializeApp(firebaseConfig);
+  console.log('Firebase initialized successfully');
 } catch (error) {
   console.error('Firebase initialization error:', error);
   // Retry initialization for Capacitor
@@ -24,6 +25,7 @@ try {
     setTimeout(() => {
       try {
         app = initializeApp(firebaseConfig);
+        console.log('Firebase retry initialization successful');
       } catch (retryError) {
         console.error('Firebase retry initialization error:', retryError);
       }
@@ -31,6 +33,19 @@ try {
   }
 }
 
+// Add connection monitoring for debugging
+auth.onAuthStateChanged((user) => {
+  if (user) {
+    console.log('User authenticated:', {
+      uid: user.uid,
+      email: user.email,
+      emailVerified: user.emailVerified,
+      displayName: user.displayName
+    });
+  } else {
+        console.log('User signed out');
+  }
+});
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 

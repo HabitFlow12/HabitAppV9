@@ -22,47 +22,93 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   async function signup(email, password, name) {
-    const userCred = await createUserWithEmailAndPassword(auth, email, password)
-    await updateProfile(userCred.user, { displayName: name })
-    
-    // Send email verification immediately after account creation
     try {
-      await sendEmailVerification(userCred.user)
-      console.log('Email verification sent successfully')
+      const userCred = await createUserWithEmailAndPassword(auth, email, password)
+      
+      // Update profile first
+      await updateProfile(userCred.user, { displayName: name })
+      
+      // Force refresh the user to get updated profile
+      await userCred.user.reload()
+      
+      // Send email verification with proper error handling
+      await sendEmailVerification(userCred.user, {
+        handleCodeInApp: false,
+        url: window.location.origin
+      })
+      
+      console.log('Email verification sent successfully to:', email)
     } catch (verificationError) {
       console.error('Error sending verification email:', verificationError)
-      // Don't throw error - allow signup to continue even if email fails
+      // Re-throw verification errors so user knows about the issue
+      throw new Error('Account created but verification email failed to send. Please try logging in and request a new verification email.')
     }
 
-    // Create user document in Firestore
-    const userData = {
-      userId: userCred.user.uid,
-      name,
-      email,
-      verified: false,
-      createdAt: new Date(),
-      lastLogin: new Date(),
-      habits: {},
-      habitCompletion: {},
-      activityLog: {},
-      habitPreferences: {}
-    }
-    
-    // Use setDoc to create the document
-    await setDoc(doc(db, "users", userCred.user.uid), userData)
+      // Create comprehensive user document in Firestore
+      const userData = {
+        userId: userCred.user.uid,
+        name,
+        email,
+        verified: false,
+        createdAt: new Date(),
+        lastLogin: new Date(),
+        // Habit system data
+        habits: {},
+        habitCompletion: {},
+        activityLog: {},
+        habitPreferences: {},
+        habitStacks: {},
+        dailyStats: {},
+        reflections: {},
+        // Features data
+        journalEntries: [],
+        calendarEvents: [],
+        todoItems: [],
+        mealLogs: {},
+        waterIntake: {},
+        mealTrackerSettings: { waterGoal: 8 },
+        futureLetters: [],
+        gratitudeEntries: [],
+        dayReflections: [],
+        bucketListItems: [],
+        transactions: [],
+        budgets: {},
+        savingsGoals: [],
+        financeSettings: {},
+        schoolTasks: [],
+        schoolSubjects: [],
+        schoolGrades: [],
+        studySchedule: [],
+        schoolSettings: {},
+        passwordEntries: [],
+        vaultPin: '',
+        lastUpdated: new Date()
+      }
+      
+      // Use setDoc to create the document with merge to avoid overwriting
+      await setDoc(doc(db, "users", userCred.user.uid), userData, { merge: true })
 
-    return userCred
+      return userCred
+    } catch (error) {
+      console.error('Signup error:', error)
+      throw error
+    }
   }
 
   async function login(email, password) {
-    const userCred = await signInWithEmailAndPassword(auth, email, password)
-    
-    // Update last login time
-    await setDoc(doc(db, "users", userCred.user.uid), {
-      lastLogin: new Date()
-    }, { merge: true })
+    try {
+      const userCred = await signInWithEmailAndPassword(auth, email, password)
+      
+      // Update last login time
+      await setDoc(doc(db, "users", userCred.user.uid), {
+        lastLogin: new Date()
+      }, { merge: true })
 
-    return userCred
+      return userCred
+    } catch (error) {
+      console.error('Login error:', error)
+      throw error
+    }
   }
 
   async function logout() {
